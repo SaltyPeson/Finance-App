@@ -43,13 +43,32 @@ def categorize_transactions(df):
 def load_transactions(file):
     try:
         df = pd.read_csv(file)
+        st.write("Columns in your uploaded file:", df.columns.tolist())  # Debug helper
         df.columns = [col.strip() for col in df.columns]
-        df["Amount"] = df["Amount"].str.replace(",", "").astype(float)
-        df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y")
+
+        # Clean and convert 'Amount'
+        df["Amount"] = df["Amount"].astype(str) \
+            .str.replace(",", "", regex=False) \
+            .str.replace("AED", "", regex=False) \
+            .str.replace("$", "", regex=False) \
+            .str.strip()
+
+        df["Amount"] = pd.to_numeric(df["Amount"], errors="coerce")
+
+        if df["Amount"].isna().any():
+            st.warning("Some rows have invalid 'Amount' values that were skipped.")
+            df = df.dropna(subset=["Amount"])
+
+        # Convert date
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce", format="%d %b %Y")
+        if df["Date"].isna().any():
+            st.warning("Some rows have invalid 'Date' values.")
+
         return categorize_transactions(df)
     except Exception as e:
         st.error(f"Error processing file: {str(e)}")
         return None
+
 
 def add_keyword_to_category(category, keyword):
     keyword = keyword.strip()
